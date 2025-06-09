@@ -112,6 +112,7 @@ local caInfo = {
     '{ffd200}/cset_y [знач.] - {ffffff}изменить смещение окна с информацией по оси {00fbff}Y',
     '{ffd200}/cset [кол-во] - {ffffff}чтобы изменить кол-во крафтов за раз',
     '{ffd200}/cwait [кол-во] - {ffffff}задержка в {ffd200}милисекундах {ffffff}перед действиями. Изначально {ffd200}250 мс.',
+    '{ffd200}/caupdate - {ffffff}обновить скрипт до актуальной версии',
 }
 
 function sampEvents.onSendPlayerSync(data)
@@ -293,11 +294,14 @@ function main()
 
     local serverVersion = updater():getLastVersion()
     if thisScript().version ~= serverVersion then
-        updater():printChatMessage('Вышло обновление. Начинается скачка')
-        updater():download()
+        updater():printChatMessage(('Вышла версия {ffd200}%s. {ffffff}Используйте команду {ffd200}/caupdate'):format(serverVersion))
     else
         sampAddChatMessage('{ffd200}[craftAssistant]: {ffffff}/chelp - список доступных команд', -1)
     end
+
+    sampRegisterChatCommand('caupdate', function(arg)
+        updater():download()    
+    end)
 
     sampRegisterChatCommand('chelp', function(arg)
         for key, data in pairs(caInfo) do
