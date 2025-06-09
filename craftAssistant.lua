@@ -1,3 +1,7 @@
+local encoding = require 'encoding'
+encoding.default = 'CP1251'
+u8 = encoding.UTF8
+
 script_author('https://www.blast.hk/members/209662/')
 script_version('1.0.1')
 
@@ -48,10 +52,7 @@ jsonSettings()
 
 local sampEvents = require('lib.samp.events')
 local imgui = require 'mimgui'
-local encoding = require 'encoding'
 local ffi = require 'ffi'
-encoding.default = 'CP1251'
-u8 = encoding.UTF8
 
 local renderWindow = imgui.new.bool(false)
 local isNearestCraftingBench = false
