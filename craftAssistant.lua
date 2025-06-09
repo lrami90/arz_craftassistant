@@ -1,60 +1,6 @@
 script_author('https://www.blast.hk/members/209662/')
 script_version('1.0.1')
 
-function updater()
-    local raw = 'https://raw.githubusercontent.com/lrami90/arz_craftassistant/refs/heads/main/version.json'
-    local dlstatus = require('moonloader').download_status
-    local requests = require('requests')
-    local f = {}
-
-    function f:printChatMessage(data)
-        sampAddChatMessage('{ffd200}[craftAssistant]: {ffffff}' .. data, -1)
-    end
-    function f:getLastVersion()
-        local response = requests.get(raw)
-        if response.status_code == 200 then
-            return decodeJson(response.text)['version']
-        else
-            return 'UNKNOWN'
-        end
-    end
-    function f:download()
-        local response = requests.get(raw)
-        if response.status_code == 200 then
-            	downloadUrlToFile(decodeJson(response.text)['url'], thisScript().path, function(id, status, p1, p2)
-				if status == dlstatus.STATUSEX_ENDDOWNLOAD then
-					local file = io.open(thisScript().path, "rb")
-					if not file then
-						self:printChatMessage('{ff0000}Ошибка: не удалось открыть файл')
-						return
-					end
-					
-					local encodedContent = file:read("*a")
-					file:close()
-					
-		
-					
-					local outputFile = io.open(thisScript().path, "wb")
-					if not outputFile then
-						self:printChatMessage('{ff0000}Ошибка: не удалось записать декодированный файл')
-						return
-					end
-					
-					outputFile:write(u8:decode(encodedContent))
-					outputFile:close()
-					
-					self:printChatMessage('Скрипт обновлен до версии {ffd200}' .. decodeJson(response.text)['version'])
-					self:printChatMessage('Больше информации в теме - {00ffff}' .. decodeJson(response.text)['bh_url'])
-					thisScript():reload()
-				end
-			end)
-        else
-            self:printChatMessage('Ошибка при обновлении скрипта. Код от сервера ' .. response.status_code, -1)
-        end
-    end
-    return f
-end
-
 local JsonStatus, Json = pcall(require, 'carbjsonconfig');
 assert(JsonStatus, 'carbJsonConfg lib not found');
 
@@ -609,39 +555,54 @@ function Search3Dtext(x, y, z, radius, pattern)
     return found, closestText, closestColor, closestPosX, closestPosY, closestPosZ, closestDistance, closestIgnoreWalls, closestPlayer, closestVehicle
 end
 
-function base64Decode(data)
-    local chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/'
-    data = data:gsub("%s", "")
-    
-    local lookup = {}
-    for i = 1, #chars do
-        lookup[chars:sub(i, i)] = i - 1
+function updater()
+    local raw = 'https://raw.githubusercontent.com/lrami90/arz_craftassistant/refs/heads/main/version.json'
+    local dlstatus = require('moonloader').download_status
+    local requests = require('requests')
+    local f = {}
+
+    function f:printChatMessage(data)
+        sampAddChatMessage('{ffd200}[craftAssistant]: {ffffff}' .. data, -1)
     end
-    
-    local result = {}
-    local buffer = 0
-    local bits = 0
-    local count = 0
-    
-    for i = 1, #data do
-        local char = data:sub(i, i)
-        if char == '=' then break end
-        
-        local value = lookup[char]
-        if not value then
-            error("Invalid Base64 character: " .. char)
-        end
-        
-        buffer = bit.bor(bit.lshift(buffer, 6), value)
-        bits = bits + 6
-        
-        if bits >= 8 then
-            bits = bits - 8
-            count = count + 1
-            result[count] = string.char(bit.rshift(buffer, bits))
-            buffer = bit.band(buffer, bit.lshift(1, bits) - 1)
+    function f:getLastVersion()
+        local response = requests.get(raw)
+        if response.status_code == 200 then
+            return decodeJson(response.text)['version']
+        else
+            return 'UNKNOWN'
         end
     end
-    
-    return table.concat(result)
+    function f:download()
+        local response = requests.get(raw)
+        if response.status_code == 200 then
+            	downloadUrlToFile(decodeJson(response.text)['url'], thisScript().path, function(id, status, p1, p2)
+				if status == dlstatus.STATUSEX_ENDDOWNLOAD then
+					local file = io.open(thisScript().path, "rb")
+					if not file then
+						self:printChatMessage('{ff0000}Ошибка: не удалось открыть файл')
+						return
+					end
+
+					local serverFileContent = file:read("*a")
+                    file:close()
+					
+					local outputFile = io.open(thisScript().path, "wb")
+					if not outputFile then
+						self:printChatMessage('{ff0000}Ошибка: не удалось записать в файл')
+						return
+					end
+					
+					outputFile:write(u8:decode(serverFileContent)) -- Очень сильный способ починить кодировку UTF8 -> Win 1251
+					outputFile:close()
+					
+					self:printChatMessage('Скрипт обновлен до версии {ffd200}' .. decodeJson(response.text)['version'])
+					self:printChatMessage('Больше информации в теме - {00ffff}' .. decodeJson(response.text)['bh_url'])
+					thisScript():reload()
+				end
+			end)
+        else
+            self:printChatMessage('Ошибка при обновлении скрипта. Код от сервера ' .. response.status_code, -1)
+        end
+    end
+    return f
 end
