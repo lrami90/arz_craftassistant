@@ -1,6 +1,40 @@
 script_author('https://www.blast.hk/members/209662/')
 script_version('1.0.1')
 
+function updater()
+    local raw = 'https://raw.githubusercontent.com/lrami90/arz_craftassistant/refs/heads/main/version.json'
+    local dlstatus = require('moonloader').download_status
+    local requests = require('requests')
+    local f = {}
+
+    function f:printChatMessage(data)
+        sampAddChatMessage('{ffd200}[craftAssistant]: {ffffff}' .. data, -1)
+    end
+    function f:getLastVersion()
+        local response = requests.get(raw)
+        if response.status_code == 200 then
+            return decodeJson(response.text)['version']
+        else
+            return 'UNKNOWN'
+        end
+    end
+    function f:download()
+        local response = requests.get(raw)
+        if response.status_code == 200 then
+            downloadUrlToFile(decodeJson(response.text)['url'], thisScript().path, function (id, status, p1, p2)
+                if status == dlstatus.STATUSEX_ENDDOWNLOAD then
+                    self:printChatMessage('РЎРєСЂРёРїС‚ РѕР±РЅРѕРІР»РµРЅ РґРѕ РІРµСЂСЃРёРё {ffd200}' .. decodeJson(response.text)['version'])
+                    self:printChatMessage('Р‘РѕР»СЊС€Рµ РёРЅС„РѕСЂРјР°С†РёРё РІ С‚РµРјРµ -  {00ffff}' .. decodeJson(response.text)['bh_url'])
+                    thisScript():reload()
+                end
+            end)
+        else
+            self:printChatMessage('РћС€РёР±РєР° РїСЂРё РѕР±РЅРѕРІР»РµРЅРёРё СЃРєСЂРёРїС‚Р°. РљРѕРґ РѕС‚ СЃРµСЂРІРµСЂР° ' .. response.status_code, -1)
+        end
+    end
+    return f
+end
+
 local JsonStatus, Json = pcall(require, 'carbjsonconfig');
 assert(JsonStatus, 'carbJsonConfg lib not found');
 
@@ -22,7 +56,7 @@ u8 = encoding.UTF8
 local renderWindow = imgui.new.bool(false)
 local isNearestCraftingBench = false
 
--- Константы которые удобно в случае чего заменить
+-- РљРѕРЅСЃС‚Р°РЅС‚С‹ РєРѕС‚РѕСЂС‹Рµ СѓРґРѕР±РЅРѕ РІ СЃР»СѓС‡Р°Рµ С‡РµРіРѕ Р·Р°РјРµРЅРёС‚СЊ
 local td_data = {
     categoty = {
         ['first'] = {id = -1, x = 153, y = 181},
@@ -43,10 +77,10 @@ local td_data = {
 }
 
 local cData = {
-    singleTip = true, -- Подсказка рядом с верстаком
-    categoty_item = -1, -- Вкладка "Аксессуары"
-    selected_item = -1, -- Предмет
-    limit = '10', -- Крафтов за 1 раз
+    singleTip = true, -- РџРѕРґСЃРєР°Р·РєР° СЂСЏРґРѕРј СЃ РІРµСЂСЃС‚Р°РєРѕРј
+    categoty_item = -1, -- Р’РєР»Р°РґРєР° "РђРєСЃРµСЃСЃСѓР°СЂС‹"
+    selected_item = -1, -- РџСЂРµРґРјРµС‚
+    limit = '10', -- РљСЂР°С„С‚РѕРІ Р·Р° 1 СЂР°Р·
     page_counter = 1,
     inputed = 0,
     crafting = false,
@@ -74,14 +108,14 @@ function IStats:reset()
 end
 
 local caInfo = {
-    '{ffd200}/cset_x [знач.] - {ffffff}изменить смещение окна с информацией по оси {00fbff}X',
-    '{ffd200}/cset_y [знач.] - {ffffff}изменить смещение окна с информацией по оси {00fbff}Y',
-    '{ffd200}/cset [кол-во] - {ffffff}чтобы изменить кол-во крафтов за раз',
-    '{ffd200}/cwait [кол-во] - {ffffff}задержка в {ffd200}милисекундах {ffffff}перед действиями. Изначально {ffd200}250 мс.',
+    '{ffd200}/cset_x [Р·РЅР°С‡.] - {ffffff}РёР·РјРµРЅРёС‚СЊ СЃРјРµС‰РµРЅРёРµ РѕРєРЅР° СЃ РёРЅС„РѕСЂРјР°С†РёРµР№ РїРѕ РѕСЃРё {00fbff}X',
+    '{ffd200}/cset_y [Р·РЅР°С‡.] - {ffffff}РёР·РјРµРЅРёС‚СЊ СЃРјРµС‰РµРЅРёРµ РѕРєРЅР° СЃ РёРЅС„РѕСЂРјР°С†РёРµР№ РїРѕ РѕСЃРё {00fbff}Y',
+    '{ffd200}/cset [РєРѕР»-РІРѕ] - {ffffff}С‡С‚РѕР±С‹ РёР·РјРµРЅРёС‚СЊ РєРѕР»-РІРѕ РєСЂР°С„С‚РѕРІ Р·Р° СЂР°Р·',
+    '{ffd200}/cwait [РєРѕР»-РІРѕ] - {ffffff}Р·Р°РґРµСЂР¶РєР° РІ {ffd200}РјРёР»РёСЃРµРєСѓРЅРґР°С… {ffffff}РїРµСЂРµРґ РґРµР№СЃС‚РІРёСЏРјРё. РР·РЅР°С‡Р°Р»СЊРЅРѕ {ffd200}250 РјСЃ.',
 }
 
 function sampEvents.onSendPlayerSync(data)
-    if cData.crafting and data.keysData == 1024 then -- Запрет на нажатие альта при крафте
+    if cData.crafting and data.keysData == 1024 then -- Р—Р°РїСЂРµС‚ РЅР° РЅР°Р¶Р°С‚РёРµ Р°Р»СЊС‚Р° РїСЂРё РєСЂР°С„С‚Рµ
         data.keysData = 0
     end
 end
@@ -89,19 +123,19 @@ end
 function sampEvents.onShowTextDraw(textdrawId, data)
     if cData.crafting then return true end
 
-    -- Категория предмета
+    -- РљР°С‚РµРіРѕСЂРёСЏ РїСЂРµРґРјРµС‚Р°
     for key, value in pairs(td_data.categoty) do
         if math.floor(data.position.x) == value.x and math.floor(data.position.y) == value.y then
             value.id = textdrawId
         end
     end
 
-    -- Предметы
+    -- РџСЂРµРґРјРµС‚С‹
     if math.floor(data.position.x) == 162 and isInRange(data.position.y, 201, 320) then
         table.insert(td_data.items, textdrawId)
     end
 
-    -- Элементы управления
+    -- Р­Р»РµРјРµРЅС‚С‹ СѓРїСЂР°РІР»РµРЅРёСЏ
     for key, value in pairs(td_data.control) do
         if math.floor(data.position.x) == value.x and math.floor(data.position.y) == value.y then
             value.id = textdrawId
@@ -164,8 +198,8 @@ function sampEvents.onSendDialogResponse(dialogId, button, listboxId, input)
     end
 end
 
--- Это такой пиздец вычислительных мыслей, что пускай оно работает так как есть.
--- Буду рад если меня отпинают и сделают нормально.
+-- Р­С‚Рѕ С‚Р°РєРѕР№ РїРёР·РґРµС† РІС‹С‡РёСЃР»РёС‚РµР»СЊРЅС‹С… РјС‹СЃР»РµР№, С‡С‚Рѕ РїСѓСЃРєР°Р№ РѕРЅРѕ СЂР°Р±РѕС‚Р°РµС‚ С‚Р°Рє РєР°Рє РµСЃС‚СЊ.
+-- Р‘СѓРґСѓ СЂР°Рґ РµСЃР»Рё РјРµРЅСЏ РѕС‚РїРёРЅР°СЋС‚ Рё СЃРґРµР»Р°СЋС‚ РЅРѕСЂРјР°Р»СЊРЅРѕ.
 function sampEvents.onShowDialog(dialogId, style, title, button1, button2, text)
     if dialogId == 8475 and cData.crafting then 
         if tonumber(cData.inputed) >= (IStats.maximum - IStats.completed) then
@@ -185,7 +219,7 @@ function sampEvents.onShowDialog(dialogId, style, title, button1, button2, text)
 end
 
 function sampEvents.onServerMessage(color, text)
-    if text:find('Вы успешно создали предмет') and not text:find('%[%d+%]') then
+    if text:find('Р’С‹ СѓСЃРїРµС€РЅРѕ СЃРѕР·РґР°Р»Рё РїСЂРµРґРјРµС‚') and not text:find('%[%d+%]') then
         if IStats.craftTime == -1 then
             IStats.craftTime = os.clock()
         end
@@ -194,7 +228,7 @@ function sampEvents.onServerMessage(color, text)
         cData.waitCrafting = false
     end
 
-    if text:find('не удалось') and text:find('шанс') and not text:find('%[%d+%]') then
+    if text:find('РЅРµ СѓРґР°Р»РѕСЃСЊ') and text:find('С€Р°РЅСЃ') and not text:find('%[%d+%]') then
         if IStats.craftTime == -1 then
             IStats.craftTime = os.clock()
         end
@@ -203,9 +237,9 @@ function sampEvents.onServerMessage(color, text)
         cData.waitCrafting = false
     end
 
-    if text:find('Вы прервали процесс создания предмета!') and color == -10270721 then
+    if text:find('Р’С‹ РїСЂРµСЂРІР°Р»Рё РїСЂРѕС†РµСЃСЃ СЃРѕР·РґР°РЅРёСЏ РїСЂРµРґРјРµС‚Р°!') and color == -10270721 then
         cData.crafting = false
-        sampAddChatMessage('{ffd200}[Инфомарция] {ffffff}Крафт был прерван', -1)
+        sampAddChatMessage('{ffd200}[РРЅС„РѕРјР°СЂС†РёСЏ] {ffffff}РљСЂР°С„С‚ Р±С‹Р» РїСЂРµСЂРІР°РЅ', -1)
     end
 end
 
@@ -232,16 +266,16 @@ local statsFrame = imgui.OnFrame(
         imgui.SetNextWindowPos(imgui.ImVec2(chatPosition[1] + jsonSettings.x, chatPosition[2] + jsonSettings.y), imgui.Cond.Always, imgui.ImVec2(0.5, 0.5))
         imgui.SetNextWindowSize(imgui.ImVec2(sizeX, sizeY), imgui.Cond.FirstUseEver)
         if imgui.Begin('##statsFrame', renderWindow, imgui.WindowFlags.NoResize + imgui.WindowFlags.NoCollapse + imgui.WindowFlags.NoTitleBar) then
-            imgui.TextColoredRGB(u8('Сделано {ffd200}%d из %d'):format(IStats.completed, IStats.maximum))  
-            imgui.TextColoredRGB(u8('- По {ffd200}%s {ffffff}крафтов за раз'):format(cData.limit))  
-            imgui.TextColoredRGB(u8('- Успешных {8bff00}%d'):format(IStats.good))
-            imgui.TextColoredRGB(u8('- Неудачных {ff0000}%d'):format(IStats.bad))
+            imgui.TextColoredRGB(u8('РЎРґРµР»Р°РЅРѕ {ffd200}%d РёР· %d'):format(IStats.completed, IStats.maximum))  
+            imgui.TextColoredRGB(u8('- РџРѕ {ffd200}%s {ffffff}РєСЂР°С„С‚РѕРІ Р·Р° СЂР°Р·'):format(cData.limit))  
+            imgui.TextColoredRGB(u8('- РЈСЃРїРµС€РЅС‹С… {8bff00}%d'):format(IStats.good))
+            imgui.TextColoredRGB(u8('- РќРµСѓРґР°С‡РЅС‹С… {ff0000}%d'):format(IStats.bad))
             imgui.NewLine()
             local calculatedTime = (IStats.craftTime - IStats.animationTime) < 0 and 0 or IStats.craftTime - IStats.animationTime
             IStats.elapsedTime = formatTime((calculatedTime) * (IStats.maximum - IStats.completed))
-            imgui.TextColoredRGB(u8('Будет затрачено {00fbff}%s {ffffff}минут'):format(IStats.elapsedTime))
+            imgui.TextColoredRGB(u8('Р‘СѓРґРµС‚ Р·Р°С‚СЂР°С‡РµРЅРѕ {00fbff}%s {ffffff}РјРёРЅСѓС‚'):format(IStats.elapsedTime))
 
-            imgui.TextColoredRGB(u8('Фактический шанс крафта {00fbff}%.2f'):format(
+            imgui.TextColoredRGB(u8('Р¤Р°РєС‚РёС‡РµСЃРєРёР№ С€Р°РЅСЃ РєСЂР°С„С‚Р° {00fbff}%.2f'):format(
                 (IStats.completed > 0) and (
                     (IStats.good > 0) and (100 * (IStats.good / IStats.completed)) 
                     or (-100 / IStats.completed)
@@ -253,11 +287,17 @@ local statsFrame = imgui.OnFrame(
     end
 )
 
--- При разработке не пострадала ни одна аптечка.
+-- РџСЂРё СЂР°Р·СЂР°Р±РѕС‚РєРµ РЅРµ РїРѕСЃС‚СЂР°РґР°Р»Р° РЅРё РѕРґРЅР° Р°РїС‚РµС‡РєР°.
 function main()
     while not isSampAvailable() do wait(0) end
 
-    sampAddChatMessage('{ffd200}[craftAssistant]: {ffffff}/chelp - список доступных команд', -1)
+    local serverVersion = updater():getLastVersion()
+    if thisScript().version ~= serverVersion then
+        updater():printChatMessage('Р’С‹С€Р»Рѕ РѕР±РЅРѕРІР»РµРЅРёРµ. РќР°С‡РёРЅР°РµС‚СЃСЏ СЃРєР°С‡РєР°')
+        updater():download()
+    else
+        sampAddChatMessage('{ffd200}[craftAssistant]: {ffffff}/chelp - СЃРїРёСЃРѕРє РґРѕСЃС‚СѓРїРЅС‹С… РєРѕРјР°РЅРґ', -1)
+    end
 
     sampRegisterChatCommand('chelp', function(arg)
         for key, data in pairs(caInfo) do
@@ -292,33 +332,33 @@ function main()
                 cData.waitInputData = true
                 while cData.waitCrafting do wait(0) end
 
-                -- Ждем пока вновь не появится окно крафта
+                -- Р–РґРµРј РїРѕРєР° РІРЅРѕРІСЊ РЅРµ РїРѕСЏРІРёС‚СЃСЏ РѕРєРЅРѕ РєСЂР°С„С‚Р°
                 while not sampTextdrawIsExists(td_data.control['button'].id) do
                     wait(jsonSettings.sleepTime)
                 end
 
-                -- А мы уже накрафтились
+                -- Рђ РјС‹ СѓР¶Рµ РЅР°РєСЂР°С„С‚РёР»РёСЃСЊ
                 if IStats.completed >= IStats.maximum then
-                    sampAddChatMessage('{ffd200}[Инфомарция] {ffffff}Крафт закончен', -1)
+                    sampAddChatMessage('{ffd200}[РРЅС„РѕРјР°СЂС†РёСЏ] {ffffff}РљСЂР°С„С‚ Р·Р°РєРѕРЅС‡РµРЅ', -1)
                     cData.crafting = false
                     goto exitThread
                 end
    
-                -- Выбираем категорию
+                -- Р’С‹Р±РёСЂР°РµРј РєР°С‚РµРіРѕСЂРёСЋ
                 sampSendClickTextdraw(cData.categoty_item)
                 wait(jsonSettings.sleepTime)
 
-                -- Выбираем страницу
+                -- Р’С‹Р±РёСЂР°РµРј СЃС‚СЂР°РЅРёС†Сѓ
                 for i = 1, cData.page_counter - 1 do
                     sampSendClickTextdraw(td_data.control['next-page'].id)
                     wait(jsonSettings.sleepTime)
                 end
 
-                -- Выбрали предмет
+                -- Р’С‹Р±СЂР°Р»Рё РїСЂРµРґРјРµС‚
                 sampSendClickTextdraw(cData.selected_item)
                 wait(jsonSettings.sleepTime)
 
-                -- Жмем на инпут и ждем пока данные введутся
+                -- Р–РјРµРј РЅР° РёРЅРїСѓС‚ Рё Р¶РґРµРј РїРѕРєР° РґР°РЅРЅС‹Рµ РІРІРµРґСѓС‚СЃСЏ
                 sampSendClickTextdraw(td_data.control['input'].id)
                 while cData.waitInputData do
                     wait(jsonSettings.sleepTime)
@@ -335,12 +375,12 @@ function main()
         while true do
             wait(150)
             local charPos = {getCharCoordinates(PLAYER_PED)}
-            isNearestCraftingBench = Search3Dtext(charPos[1], charPos[2], charPos[3], 3, 'Чтобы воспользоваться верстаком') or Search3Dtext(charPos[1], charPos[2], charPos[3], 3, 'Переносной верстак')
+            isNearestCraftingBench = Search3Dtext(charPos[1], charPos[2], charPos[3], 3, 'Р§С‚РѕР±С‹ РІРѕСЃРїРѕР»СЊР·РѕРІР°С‚СЊСЃСЏ РІРµСЂСЃС‚Р°РєРѕРј') or Search3Dtext(charPos[1], charPos[2], charPos[3], 3, 'РџРµСЂРµРЅРѕСЃРЅРѕР№ РІРµСЂСЃС‚Р°Рє')
             renderWindow[0] = isNearestCraftingBench
 
             if isNearestCraftingBench and cData.singleTip then
                 cData.singleTip = false
-                sampAddChatMessage('{ffd200}[Инфомарция] {ffffff}Используйте {ffd200}/cset [кол-во] {ffffff}чтобы изменить кол-во крафтов за раз', -1)
+                sampAddChatMessage('{ffd200}[РРЅС„РѕРјР°СЂС†РёСЏ] {ffffff}РСЃРїРѕР»СЊР·СѓР№С‚Рµ {ffd200}/cset [РєРѕР»-РІРѕ] {ffffff}С‡С‚РѕР±С‹ РёР·РјРµРЅРёС‚СЊ РєРѕР»-РІРѕ РєСЂР°С„С‚РѕРІ Р·Р° СЂР°Р·', -1)
                 elseif not isNearestCraftingBench then
                     cData.singleTip = true
             end
@@ -355,7 +395,7 @@ function formatTime(seconds)
 end
 
 function getChatCoord()
-    if not isSampAvailable() then -- Иначе access violation скажет НЫА
+    if not isSampAvailable() then -- РРЅР°С‡Рµ access violation СЃРєР°Р¶РµС‚ РќР«Рђ
         return {100, 100}
     end
     local chatInfoPtr = getStructElement(sampGetInputInfoPtr(), 0x8, 4)
@@ -384,7 +424,7 @@ function imgui.TextColoredRGB(text)
     local designText = function(text__)
         local pos = imgui.GetCursorPos()
         if sampGetChatDisplayMode() == 2 then
-            for i = 1, 1 --[[Степень тени]] do
+            for i = 1, 1 --[[РЎС‚РµРїРµРЅСЊ С‚РµРЅРё]] do
                 imgui.SetCursorPos(imgui.ImVec2(pos.x + i, pos.y))
                 imgui.TextColored(imgui.ImVec4(0, 0, 0, 1), text__) -- shadow
                 imgui.SetCursorPos(imgui.ImVec2(pos.x - i, pos.y))
