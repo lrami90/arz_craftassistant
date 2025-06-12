@@ -252,6 +252,7 @@ local controlFrame = imgui.OnFrame(
             imgui.SameLine()
 
             if imgui.Button(faicons('TRASH'), imgui.ImVec2(30, 30)) then
+                cData.crafting = false
                 IStats:reset()
                 sampAddChatMessage('{ffd200}[craftAssistant]: {ffffff}Статистика сброшена', -1)
             end
