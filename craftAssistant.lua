@@ -1,5 +1,5 @@
 script_author('https://www.blast.hk/members/209662/')
-script_version('1.0.1')
+script_version('1.1.1')
 
 local JsonStatus, Json = pcall(require, 'carbjsonconfig');
 assert(JsonStatus, 'carbJsonConfg lib not found');
@@ -15,6 +15,7 @@ jsonSettings()
 local sampEvents = require('lib.samp.events')
 local imgui = require 'mimgui'
 local ffi = require 'ffi'
+local faicons = require('fAwesome6')
 
 local encoding = require 'encoding'
 encoding.default = 'CP1251'
@@ -53,6 +54,7 @@ local cData = {
     crafting = false,
     waitCrafting = true,
     waitInputData = true,
+    moving = false,
 }
 
 local IStats = {
@@ -75,8 +77,6 @@ function IStats:reset()
 end
 
 local caInfo = {
-    '{ffd200}/cset_x [знач.] - {ffffff}изменить смещение окна с информацией по оси {00fbff}X',
-    '{ffd200}/cset_y [знач.] - {ffffff}изменить смещение окна с информацией по оси {00fbff}Y',
     '{ffd200}/cset [кол-во] - {ffffff}чтобы изменить кол-во крафтов за раз',
     '{ffd200}/cwait [кол-во] - {ffffff}задержка в {ffd200}милисекундах {ffffff}перед действиями. Изначально {ffd200}250 мс.',
     '{ffd200}/caupdate - {ffffff}обновить скрипт до актуальной версии',
@@ -127,7 +127,9 @@ function sampEvents.onSendClickTextDraw(textdrawId)
     
     if textdrawId == td_data.control['button'].id then
         cData.crafting = true
-        IStats:reset()
+        if IStats.completed >= IStats.maximum then
+            IStats:reset() -- Обнуляем статистику только если крафт закончился
+        end
     end
 
     for key, value in pairs(td_data.categoty) do
@@ -218,12 +220,48 @@ imgui.OnInitialize(function()
     config.MergeMode = true
     config.PixelSnapH = true
 
+    local iconRanges = imgui.new.ImWchar[3](faicons.min_range, faicons.max_range, 0)
     local glyph_ranges = imgui.GetIO().Fonts:GetGlyphRangesCyrillic()
     imgui.GetIO().Fonts:Clear()
     imgui.GetIO().Fonts:AddFontFromFileTTF('moonloader/resource/fonts/EagleSans Regular Regular.ttf', 16.0, nil, glyph_ranges)
+    imgui.GetIO().Fonts:AddFontFromMemoryCompressedBase85TTF(faicons.get_font_data_base85('regular'), 16, config, iconRanges)
 
     SoftBlueTheme()
 end)
+
+local controlFrame = imgui.OnFrame(
+    function() return renderWindow[0] end,
+    function(control)
+        control.HideCursor = true
+        local chatPosition = getChatCoord()
+        local sizeX, sizeY = 260, 60
+        imgui.SetNextWindowPos(imgui.ImVec2(chatPosition[1] + jsonSettings.x - 10, chatPosition[2] + jsonSettings.y + 120), imgui.Cond.Always, imgui.ImVec2(0.5, 0.5))
+        imgui.SetNextWindowSize(imgui.ImVec2(sizeX, sizeY), imgui.Cond.FirstUseEver)
+
+        imgui.PushStyleColor(imgui.Col.WindowBg, imgui.ImVec4(0, 0, 0, 0))
+        imgui.PushStyleColor(imgui.Col.Border, imgui.ImVec4(0, 0, 0, 0))
+        imgui.PushStyleColor(imgui.Col.Button, imgui.ImVec4(0.26, 0.59, 0.98, 1.00))
+        imgui.PushStyleColor(imgui.Col.ButtonHovered, imgui.ImVec4(0.26, 0.59, 0.98, 0.40))
+
+
+        if imgui.Begin('##controlFrame', renderWindow, imgui.WindowFlags.NoResize + imgui.WindowFlags.NoCollapse + imgui.WindowFlags.NoTitleBar) then
+            if imgui.Button(faicons('ARROWS_UP_DOWN_LEFT_RIGHT'), imgui.ImVec2(30, 30)) then
+                cData.moving = true
+                sampAddChatMessage('{ffd200}[craftAssistant]: {ffffff}Нажмите {ffd200}правую кнопку мыши {ffffff}чтобы закрепить окно', -1)
+            end
+            imgui.SameLine()
+
+            if imgui.Button(faicons('TRASH'), imgui.ImVec2(30, 30)) then
+                IStats:reset()
+                sampAddChatMessage('{ffd200}[craftAssistant]: {ffffff}Статистика сброшена', -1)
+            end
+     
+            imgui.End()
+        end
+
+        imgui.PopStyleColor(4)
+    end
+)
 
 local statsFrame = imgui.OnFrame(
     function() return renderWindow[0] end,
@@ -241,7 +279,7 @@ local statsFrame = imgui.OnFrame(
             imgui.NewLine()
             local calculatedTime = (IStats.craftTime - IStats.animationTime) < 0 and 0 or IStats.craftTime - IStats.animationTime
             IStats.elapsedTime = formatTime((calculatedTime) * (IStats.maximum - IStats.completed))
-            imgui.TextColoredRGB(u8('Будет затрачено {00fbff}%s {ffffff}минут'):format(IStats.elapsedTime))
+            imgui.TextColoredRGB(u8('Будет затрачено {00fbff}%s'):format(IStats.elapsedTime))
 
             imgui.TextColoredRGB(u8('Фактический шанс крафта {00fbff}%.2f'):format(
                 (IStats.completed > 0) and (
@@ -249,7 +287,7 @@ local statsFrame = imgui.OnFrame(
                     or (-100 / IStats.completed)
                 ) or 0
             ))
-
+     
             imgui.End()
         end
     end
@@ -258,6 +296,8 @@ local statsFrame = imgui.OnFrame(
 -- При разработке не пострадала ни одна аптечка.
 function main()
     while not isSampAvailable() do wait(0) end
+
+    contentManager():checkFiles()
 
     local serverVersion = updater():getLastVersion()
     if thisScript().version ~= serverVersion then
@@ -281,18 +321,23 @@ function main()
         jsonSettings()
     end)
 
-    sampRegisterChatCommand('cset_x', function(arg)
-        jsonSettings.x = (arg:match('(%d+)') == nil) and 100 or arg:match('(%d+)')
-        jsonSettings()
-    end)
-
-    sampRegisterChatCommand('cset_y', function(arg)
-        jsonSettings.y = (arg:match('(%d+)') == nil) and 100 or arg:match('(%d+)')
-        jsonSettings()
-    end)
-
     sampRegisterChatCommand('cset', function(arg)
         cData.limit = tostring((arg:match('(%d+)') == nil) and 5 or arg:match('(%d+)'))
+    end)
+    
+    lua_thread.create(function()
+        while true do
+            wait(10)
+            if cData.moving then
+                if isKeyDown(0x2) then
+                    cData.moving = false
+                    jsonSettings()
+                end
+                local cursorPos =  {getCursorPos()}
+                jsonSettings.x = cursorPos[1]
+                jsonSettings.y = cursorPos[2]
+            end
+        end
     end)
 
     lua_thread.create(function()
@@ -362,7 +407,7 @@ function main()
 end
 
 function formatTime(seconds)
-    return string.format("%02d:%02d", math.floor(seconds / 60), math.floor(seconds % 60))
+    return string.format(u8("%02d мин. %02d сек."), math.floor(seconds / 60), math.floor(seconds % 60))
 end
 
 function getChatCoord()
@@ -553,6 +598,30 @@ function Search3Dtext(x, y, z, radius, pattern)
     end
 
     return found, closestText, closestColor, closestPosX, closestPosY, closestPosZ, closestDistance, closestIgnoreWalls, closestPlayer, closestVehicle
+end
+
+
+function contentManager()
+    local IClass = {}
+
+    local reqireFiles = {
+        ['EagleSans Regular Regular.ttf'] = {type = 'шрифт', path = '\\resource\\fonts\\'},
+        ['fAwesome6.lua'] = {type = 'библиотека', path = '\\lib\\'},
+    }
+
+    function IClass:checkFiles()
+        for file, data in pairs(reqireFiles) do
+            if not doesFileExist(getWorkingDirectory() .. data.path .. file) then
+                sampAddChatMessage(('{de0000}[Ошибка] {ffffff}Отсутствует {ffd200}%s - {a1de00}%s'):format(data.type, file), -1)
+            end
+        end
+    end
+
+    function IClass:updateFile(file)
+        -- TODO
+    end
+
+    return IClass
 end
 
 function updater()
