@@ -1,5 +1,5 @@
 script_author('https://www.blast.hk/members/209662/')
-script_version('1.1.1')
+script_version('1.2.1')
 
 local JsonStatus, Json = pcall(require, 'carbjsonconfig');
 assert(JsonStatus, 'carbJsonConfg lib not found');
@@ -362,25 +362,27 @@ function main()
                 end
    
                 -- Выбираем категорию
-                sampSendClickTextdraw(cData.categoty_item)
                 wait(jsonSettings.sleepTime)
+                sampSendClickTextdraw(cData.categoty_item)
 
                 -- Выбираем страницу
                 for i = 1, cData.page_counter - 1 do
-                    sampSendClickTextdraw(td_data.control['next-page'].id)
                     wait(jsonSettings.sleepTime)
+                    sampSendClickTextdraw(td_data.control['next-page'].id)
                 end
 
                 -- Выбрали предмет
-                sampSendClickTextdraw(cData.selected_item)
                 wait(jsonSettings.sleepTime)
+                sampSendClickTextdraw(cData.selected_item)
 
                 -- Жмем на инпут и ждем пока данные введутся
+                wait(jsonSettings.sleepTime)
                 sampSendClickTextdraw(td_data.control['input'].id)
                 while cData.waitInputData do
                     wait(jsonSettings.sleepTime)
                 end
 
+                wait(jsonSettings.sleepTime)
                 sampSendClickTextdraw(td_data.control['button'].id)
             end
             ::exitThread::
